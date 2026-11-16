@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Team size** | 3 people |
-| **Environment** | C++ with the existing GLFW project (`main.cpp`) |
+| **Environment** | C++ with the existing GLFW project |
 | **Objective** | Implement Phong shading and compare it fairly with Flat and Gouraud shading |
 | **Time limit** | 2 weeks (14 days) |
 
@@ -16,47 +16,27 @@
 A working C++ application that renders the same 3D object under three selectable shading modes:
 
 1. **Flat shading**: one lighting value per triangle, computed from its face normal.
-2. **Gouraud shading**: lighting computed at each vertex, with the resulting colors interpolated across the triangle.
+2. **Gouraud shading**: lighting computed at each vertex, with the resulting vertex colors interpolated across the triangle.
 3. **Phong shading**: vertex normals interpolated across the triangle, with lighting computed per pixel.
 
 Phong shading is the main subject of the project. Flat and Gouraud shading are comparison baselines.
 
 ### Keep the existing setup
 
-- Continue with the current C++ / GLFW renderer. Do not switch graphics libraries.
-- Reuse the existing camera, vector math, window, input handling, and projection maths wherever possible.
+- Continue with the current C++ / GLFW renderer. Do not switch to another graphics library during this project.
+- Reuse the existing camera, projection, vector math, window, and depth-buffer code wherever possible.
 - Do not add texture mapping, shadows, PBR, complex model loading, or a sophisticated GUI unless the core project is already complete.
 
-### Feasibility check (result of reviewing `main.cpp`)
+### Important feasibility check
 
-| Needed capability | Current state | Consequence |
-|---|---|---|
-| Filled polygons | Yes, via `GL_POLYGON` | Usable for Flat and Gouraud only |
-| Depth testing | Yes, handled by the OpenGL depth buffer | Not accessible from our code |
-| Per-pixel access / barycentric weights | **No**: the fixed-function pipeline hides rasterization | **Phong cannot be done with the current drawing code** |
-| Normals, materials, lights | **No**: `drawFaces` uses a view-angle brightness approximation, not real lighting | Must be added |
-| Triangle mesh | **No**: faces are quads plus one hexagon, with no normals | Must triangulate; sphere must be added |
+Before implementation, verify whether the current renderer can already:
 
-**Decision:** build a minimal CPU triangle rasterizer with its own framebuffer and Z-buffer, and display the finished image with `glDrawPixels` (available in legacy OpenGL without extra libraries). All three shading modes then run through this one rasterizer, which also makes the comparison fairer. Using GLSL shaders would be simpler, but it requires a function loader, which breaks the "no additional libraries" rule.
+- draw filled triangles (not only points or lines);
+- determine which pixels lie inside a triangle;
+- perform depth testing with a Z-buffer;
+- write a color to an individual pixel.
 
-Do not build a general-purpose graphics engine. The rasterizer needs only: triangle coverage, barycentric weights, a Z-buffer, and a pixel write.
-
-### Reuse from `main.cpp`
-
-- `Vec3` and the helpers (`subtract`, `dotProduct`, `crossProduct`, `vectorLength`). Add `add`, `scale`, and `normalize`.
-- `computeCamera()` and the eye basis (`eyePosition`, `rightDirection`, `upDirection`, `forwardDirection`).
-- The projection maths in `sendVertexToScreen`. Refactor it into a function that **returns** the screen position, the depth for the Z-buffer, and the eye-space depth, instead of calling `glVertex3f` directly. Perspective and parallel modes must keep working. Output is in the range [-1, 1] and must be mapped to the square pixel viewport.
-- The lamp transform (`transformLampPoint`) and all camera and lamp controls.
-- Draw the axes and the wireframe mode as before, using OpenGL lines on top of the framebuffer image (or a simple software line routine).
-
-### Code organization
-
-`main.cpp` is currently one file. Three people editing it at once will cause merge conflicts, so on Day 2 split it into a few headers. Suggested split:
-
-- `vec3.h`: vector math
-- `mesh.h`: mesh data, triangulation, normals
-- `lighting.h`: `Material`, `Light`, `calculatePhongLighting`
-- `raster.h`: framebuffer, Z-buffer, triangle fill
+If these features already exist, reuse them. If filled-triangle rasterization is missing, make a minimal software triangle rasterizer the first priority. Do not build a general-purpose graphics engine.
 
 ---
 
@@ -66,22 +46,20 @@ Assign one person to each area. Everyone helps with integration and testing near
 
 | Member | Main responsibility | Concrete deliverables |
 |---|---|---|
-| **Member 1: Geometry and rasterization** | Mesh data, face normals, vertex normals, triangle coverage, depth testing | Sphere (and triangulated lamp) as a triangle mesh; correct face and vertex normals; software rasterizer with Z-buffer that exposes per-pixel barycentric weights |
+| **Member 1: Geometry and rasterization** | Mesh data, face normals, vertex normals, triangle coverage, depth testing | A sphere/mesh rendered as filled triangles; correct face and vertex normals; per-pixel access to triangle data |
 | **Member 2: Shading algorithms** | Shared Phong illumination equation; Flat, Gouraud, and Phong modes | One reusable lighting function and three working shading modes |
-| **Member 3: Integration and evaluation** | Projection refactor, framebuffer display, controls, test scenes, screenshots, report and slides | Shading-mode selection, consistent comparison scenes, recorded results, documentation |
+| **Member 3: Integration and evaluation** | Connecting modes to the application; controls; test scenes; screenshots; report and slides | Shading-mode selection, consistent comparison scenes, recorded results, documentation |
 
-**Member 3 is not only a report writer.** The projection refactor, framebuffer display, comparison modes, and test setup are technical project work.
+**Member 3 is not only a report writer.** The comparison modes and test setup are technical project work.
 
 ### Shared interface agreement
 
-Agree on common data structures and coordinate conventions before coding. Adapt these examples to the existing types rather than rewriting working code.
+Agree on common data structures and coordinate conventions before coding. Adapt these examples to the project's existing types instead of rewriting working code.
 
 ```cpp
-struct Color { float r, g, b; };
-
 struct Vertex {
-    Vec3 position;   // world space
-    Vec3 normal;     // world space, normalized
+    Vec3 position;
+    Vec3 normal;
 };
 
 struct Material {
@@ -92,14 +70,18 @@ struct Material {
 };
 
 struct Light {
-    Vec3 position;   // world space
+    Vec3 position;
     Vec3 color;
 };
 
-enum ShadingMode { FLAT, GOURAUD, PHONG };
+enum ShadingMode {
+    FLAT,
+    GOURAUD,
+    PHONG
+};
 ```
 
-One shared lighting function:
+Agree on one lighting function:
 
 ```cpp
 Color calculatePhongLighting(
@@ -111,14 +93,7 @@ Color calculatePhongLighting(
 );
 ```
 
-**Coordinate convention: world space.** Positions, normals, the light position, and `eyePosition` must all be in world space (the lamp is already transformed to world space in `transformedVertices`). Document any deviation.
-
-### Pitfalls specific to this project
-
-- **Normals and non-uniform scale.** The lamp can be scaled differently along each axis (`lampScaleX/Y/Z`). Normals must **not** be transformed like positions in that case: divide by the scale on each axis (inverse transpose), then rotate, then normalize.
-- **Light is fixed in world space** and does not move with the lamp unless we decide otherwise. State this in the report.
-- **Winding and normal direction.** The current code takes `fabs` of the dot product, so inconsistent face winding is hidden. Real lighting needs outward-facing normals. Check winding, or flip each normal so it points away from the object's centre.
-- **Lamp has sharp edges.** Averaging adjacent face normals would wrongly round off its box and shade corners. Use the **sphere** as the main test object. If the lamp is also shown, give it per-face (duplicated) vertices or an angle threshold for smoothing.
+The function should receive vectors in a consistent coordinate space. For the first implementation, world space is a reasonable choice: positions, normals, light position, and camera position must all use world space. If the existing renderer uses another consistent space, document and keep that convention.
 
 ---
 
@@ -128,13 +103,14 @@ Color calculatePhongLighting(
 
 **All members**
 - Build and run the current project before changing anything.
-- Confirm the feasibility results above and agree on the software-rasterizer decision.
+- Identify which parts already work: camera, projection, mesh, filled triangles, pixel writes, and Z-buffer.
 - Agree on coordinate conventions, data structures, and function signatures.
-- Choose the test object: a sphere (latitude/longitude mesh with adjustable resolution).
-- Split `main.cpp` into headers and agree on how code changes will be merged (shared branch, small commits).
+- Choose one test object: a sphere is recommended.
+- Create a shared branch or agree on how code changes will be merged.
 
 **Member 1**
-- Plan the triangle mesh representation and the rasterizer interface.
+- Inspect the mesh representation and triangle rasterization.
+- Check whether face normals and vertex normals can be stored.
 
 **Member 2**
 - Review the Phong illumination equation and prepare pseudocode.
@@ -149,54 +125,52 @@ Color calculatePhongLighting(
 ### Days 3-4: Geometry and baseline rendering
 
 **Member 1**
-- Generate the sphere as triangles; triangulate the lamp (quads split into two triangles, the hexagon as a fan, about 50 triangles in total).
+- Ensure a sphere or simple mesh is represented as triangles.
 - Calculate each triangle's face normal.
-- Generate smooth vertex normals by averaging adjacent face normals (area-weighted if straightforward), then normalize.
-- Start the software rasterizer: bounding box, barycentric coverage test, Z-buffer, and pixel write.
+- Generate smooth vertex normals by averaging adjacent face normals (area-weighted averaging is preferable if straightforward).
+- Verify normal directions and normalize the results.
 
 **Member 2**
-- Add the vector operations needed by the lighting equation.
+- Implement the vector operations needed by the lighting equation.
 - Implement and test the shared ambient, diffuse, and specular lighting function using known vectors.
 - Clamp final color values to the valid display range.
 
 **Member 3**
-- Refactor the projection function so it returns screen position and depth values.
-- Create the framebuffer and display it with `glDrawPixels` (handle window resizing and the square viewport).
 - Prepare a fixed camera, light, and material configuration.
-- Decide the controls (see Section 4).
+- Decide how users will switch between the three modes (a simple keyboard key is enough).
 
-**Milestone:** The sphere renders as filled, depth-tested triangles in the new rasterizer (any solid color), and the team can inspect valid face and vertex normals.
+**Milestone:** The object renders reliably, and the team can inspect valid face and vertex normals.
 
 ### Days 5-6: Flat and Gouraud shading
 
 **Member 1**
-- Finish the rasterizer, including Z-buffer integration.
-- Expose the triangle's vertices and per-pixel barycentric weights to the shading code.
+- Finish or repair filled-triangle rasterization and Z-buffer integration if needed.
+- Expose the triangle's vertices and pixel coverage to the shading code.
 
 **Member 2**
-- Flat shading: evaluate lighting once per triangle using its face normal and centroid.
+- Flat shading: evaluate lighting once per triangle using its face normal.
 - Gouraud shading: evaluate lighting at the three vertices and interpolate the resulting colors across the triangle.
 
 **Member 3**
-- Connect the mode selector and the light and shininess controls.
+- Connect a simple mode selector.
 - Verify that Flat and Gouraud modes use the same mesh, camera, light, and material.
 
-**Milestone:** Flat and Gouraud modes work. Keep this as a stable, tagged checkpoint before adding Phong shading.
+**Milestone:** Flat and Gouraud modes work. Keep this as a stable checkpoint before adding Phong shading.
 
 ### Days 7-9: Phong shading
 
 **Member 1**
 - Provide the three vertex normals and barycentric weights for each covered pixel.
-- Provide the interpolated world-space position for each pixel (needed for the view and light directions).
+- Ensure the interpolated normal is normalized before it is used.
 
 **Member 2**
 - Phong shading: interpolate the vertex normals across each triangle, normalize the interpolated normal, then evaluate lighting per pixel.
-- Use the same lighting function as Flat and Gouraud.
+- Use the same lighting function already used by Flat and Gouraud modes.
 - Check the specular term carefully; normalize the light, view, and normal vectors.
 
 **Member 3**
 - Integrate the Phong mode into the selector.
-- Prepare a test with a small, bright specular highlight (high shininess, low-resolution sphere) so the difference between Gouraud and Phong is visible.
+- Prepare a test with a small, bright specular highlight so the difference between Gouraud and Phong is visible.
 
 **Milestone:** All three shading modes render the same object.
 
@@ -206,10 +180,10 @@ Color calculatePhongLighting(
 - Fix visible artifacts, incorrect normal directions, inconsistent coordinate spaces, and depth errors.
 - Compare modes with identical scene settings.
 - Test at least two shininess values and two light positions.
-- Record limitations, such as perspective interpolation or performance.
+- Record any limitations, such as perspective interpolation or performance.
 
 **Member 1**
-- Verify mesh normals and Z-buffer behavior (including both projection modes).
+- Verify mesh normals and Z-buffer behavior.
 
 **Member 2**
 - Verify lighting behavior and compare the highlight in Gouraud versus Phong.
@@ -252,19 +226,6 @@ Color calculatePhongLighting(
 
 ## 4. Implementation reference
 
-### Controls
-
-Existing keys must keep working: `Tab` (camera/lamp mode), `P` (projection), `1` (wireframe), `2` (faces), `R`, `WASDEQ`, arrows, mouse wheel, `Esc`. Suggested additions (adjust to taste):
-
-| Key | Action |
-|---|---|
-| `2` / `3` / `4` | Flat / Gouraud / Phong (`1` stays wireframe) |
-| `I` `K` / `J` `L` / `U` `O` | Move the light along y / x / z |
-| `[` / `]` | Decrease / increase shininess |
-| `M` | Switch between low- and high-resolution sphere |
-
-Show the current shading mode, shininess, and light position in the window title, as the existing code does for other values.
-
 ### Shared Phong illumination
 
 All three shading techniques use the same Phong illumination equation:
@@ -285,7 +246,7 @@ Where:
 - `La`, `Ld`, `Ls`: ambient, diffuse, and specular light intensities.
 - `n`: shininess exponent.
 
-The main difference between the modes is **where the lighting equation is evaluated**.
+The main difference between the three modes is **where the lighting equation is evaluated**.
 
 ### Flat shading
 
@@ -317,14 +278,13 @@ The main difference between the modes is **where the lighting equation is evalua
    N_normalized = N / length(N)
    ```
 
-4. Evaluate the Phong illumination equation at that pixel using the interpolated normal and the pixel's world-space position.
+4. Evaluate the Phong illumination equation at that pixel using the interpolated normal and the pixel's position.
 
 **Important:** Phong shading does not mean interpolating the final colors. It means interpolating normals first, then calculating lighting separately at each pixel.
 
-### Depth and perspective
+### Practical implementation note
 
-- The existing code already outputs a depth value suitable for the Z-buffer: `-1/depth` under perspective, and a scaled `depth` under parallel projection. Both can be interpolated linearly in screen space.
-- Screen-space barycentric interpolation of normals, colors, and positions is a practical starting point. Under perspective projection, **perspective-correct** interpolation (interpolating attribute/depth and 1/depth, then dividing) is more accurate. Treat it as an optional improvement if time is limited, and note the limitation in the report. Parallel projection needs no correction.
+For a first software-renderer implementation, screen-space barycentric interpolation is a practical starting point. Under perspective projection, perspective-correct interpolation is more accurate, but it can be treated as an optional improvement if time is limited.
 
 ---
 
@@ -358,7 +318,7 @@ Fill this in after running the tests; do not invent results.
 - Phong shading usually produces smoother and more accurate specular highlights because lighting is evaluated per pixel.
 - Phong shading generally requires more lighting calculations than Gouraud shading.
 
-If performance is measured (for example, frame time), use the same resolution, mesh, and hardware, and report the measurement method.
+If performance is measured, use the same resolution, mesh, and hardware conditions, and report the measurement method.
 
 ---
 
@@ -384,7 +344,6 @@ Do **not** sacrifice a working Phong implementation to add optional features.
 - Advanced GUI controls
 - Multiple light types
 - Additional graphics libraries
-- Perspective-correct interpolation (optional improvement)
 
 ---
 
@@ -393,16 +352,13 @@ Do **not** sacrifice a working Phong implementation to add optional features.
 ### Core implementation
 
 - [ ] Existing C++/GLFW project builds and runs.
-- [ ] `main.cpp` is split into headers and everyone can merge cleanly.
-- [ ] Software rasterizer draws filled triangles with a Z-buffer.
-- [ ] Face normals are correct and outward-facing.
+- [ ] A filled 3D mesh renders with depth testing.
+- [ ] Face normals are correct.
 - [ ] Smooth vertex normals are correct.
-- [ ] Normals are transformed correctly under non-uniform lamp scaling.
 - [ ] Flat shading works.
 - [ ] Gouraud shading works.
 - [ ] Phong shading interpolates and normalizes normals per pixel.
 - [ ] All modes use consistent lighting and material settings.
-- [ ] Camera, lamp, and projection controls still work.
 
 ### Demonstration
 
