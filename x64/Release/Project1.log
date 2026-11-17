@@ -1,0 +1,10 @@
+﻿  camera.cpp
+  lighting.cpp
+  main.cpp
+  mesh.cpp
+  shading.cpp
+  Generating code
+  Previous IPDB not found, fall back to full compilation.
+  All 393 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  Project1.vcxproj -> C:\Users\ADMIN\source\repos\Project1\x64\Release\Project1.exe
