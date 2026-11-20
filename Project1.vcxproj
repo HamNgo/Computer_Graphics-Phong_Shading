@@ -150,6 +150,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="camera.cpp" />
+    <ClCompile Include="gui.cpp" />
+    <ClCompile Include="imgui\imgui.cpp" />
+    <ClCompile Include="imgui\imgui_draw.cpp" />
+    <ClCompile Include="imgui\imgui_impl_glfw.cpp" />
+    <ClCompile Include="imgui\imgui_impl_opengl2.cpp" />
+    <ClCompile Include="imgui\imgui_tables.cpp" />
+    <ClCompile Include="imgui\imgui_widgets.cpp" />
     <ClCompile Include="lighting.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mesh.cpp" />
@@ -158,9 +165,11 @@
   <ItemGroup>
     <ClInclude Include="camera.h" />
     <ClInclude Include="color_rgb.h" />
+    <ClInclude Include="gui.h" />
     <ClInclude Include="lighting.h" />
     <ClInclude Include="mesh.h" />
     <ClInclude Include="raster.h" />
+    <ClInclude Include="scene.h" />
     <ClInclude Include="shading.h" />
     <ClInclude Include="vec3.h" />
   </ItemGroup>

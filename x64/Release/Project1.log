@@ -1,10 +1,12 @@
-﻿  camera.cpp
-  lighting.cpp
-  main.cpp
-  mesh.cpp
-  shading.cpp
+﻿  imgui.cpp
+  imgui_draw.cpp
+  imgui_impl_glfw.cpp
+  imgui_impl_opengl2.cpp
+  imgui_tables.cpp
+  imgui_widgets.cpp
   Generating code
-  Previous IPDB not found, fall back to full compilation.
-  All 393 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  2011 of 2185 functions (92.0%) were compiled, the rest were copied from previous compilation.
+    1799 functions were new in current compilation
+    28 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   Project1.vcxproj -> C:\Users\ADMIN\source\repos\Project1\x64\Release\Project1.exe

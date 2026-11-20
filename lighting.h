@@ -3,7 +3,7 @@
 //
 //   I = ka * La * base                          ambient : light that is "everywhere"
 //     + kd * Ld * base * max(0, N.L)            diffuse : brightest when the surface faces the light
-//     + ks * Ls * max(0, R.V)^n                 specular: the shiny highlight
+//     + ks * Ls * specColor * max(0, R.V)^n     specular: the shiny highlight
 //
 //   N = unit surface normal             L = unit vector from the surface toward the light
 //   V = unit vector toward the camera   R = L reflected about N  =  2(N.L)N - L
@@ -19,7 +19,8 @@ struct Material {
     float diffuse;      // kd
     float specular;     // ks
     float shininess;    // n
-    ColorRGB baseColor;    // colour of the surface itself (the highlight takes the light's colour instead)
+    ColorRGB baseColor;    // colour of the surface itself
+    ColorRGB specularColor = { 1.0f, 1.0f, 1.0f };   // colour of the highlight: white for plastic, = baseColor for metal
 };
 
 struct Light {

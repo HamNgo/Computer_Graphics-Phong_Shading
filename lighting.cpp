@@ -21,9 +21,9 @@ ColorRGB calculatePhongLighting(Vec3 position, Vec3 normal, Vec3 cameraPosition,
     float specularTerm = material.specular * specularAmount;
 
     ColorRGB result = {
-        light.color.x * (material.baseColor.r * (ambientTerm + diffuseTerm) + specularTerm),
-        light.color.y * (material.baseColor.g * (ambientTerm + diffuseTerm) + specularTerm),
-        light.color.z * (material.baseColor.b * (ambientTerm + diffuseTerm) + specularTerm)
+        light.color.x * (material.baseColor.r * (ambientTerm + diffuseTerm) + material.specularColor.r * specularTerm),
+        light.color.y * (material.baseColor.g * (ambientTerm + diffuseTerm) + material.specularColor.g * specularTerm),
+        light.color.z * (material.baseColor.b * (ambientTerm + diffuseTerm) + material.specularColor.b * specularTerm)
     };
     result.r = clampf(result.r, 0.0f, 1.0f);
     result.g = clampf(result.g, 0.0f, 1.0f);

@@ -23,7 +23,7 @@ struct Framebuffer {
     std::vector<unsigned char> pixels;   // RGB, 3 bytes per pixel, row 0 = bottom (what glDrawPixels expects)
     std::vector<float> depth;            // smaller = closer
 
-    Framebuffer(int w, int h) : width(w), height(h), pixels(size_t(w)* h * 3), depth(size_t(w)* h) {}
+    Framebuffer(int w = 1, int h = 1) : width(w), height(h), pixels(size_t(w)* h * 3), depth(size_t(w)* h) {}
 
     void clear(ColorRGB background) {
         for (int i = 0; i < width * height; i++) {
